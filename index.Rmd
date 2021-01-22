@@ -1,0 +1,1086 @@
+---
+title: "COVID-19 in Deutschland: Befragungsergebnisse zur Einkommenserwartung, Heterogenität in der Impfbereitschaft, Unterstützung des Infektionsschutzes und der Rückkehr zur 'Normalität'"
+author: "Björn Bos, Moritz A. Drupp, Jasper N. Meya, Martin F. Quaas"
+output:
+  html_document:
+    self_contained: false # Speed improvement if hosted
+    includes:
+       in_header: myheader.html
+    theme: cosmo
+    df_print: paged
+    code_folding: hide
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    fig_width: 8
+    fig_height: 6
+    date: "Januar 2020"
+bibliography: literature.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	fig.align = "center",
+	warning = FALSE,
+	message = FALSE
+)
+
+library(tidyverse)
+library(magrittr)
+library(lubridate) # Note that there is a conflict with here::here() …
+library(here)
+library(RColorBrewer)
+library(plotly)
+
+# Import data
+panel <- read_csv(here::here("1_Data", "panel_wave3.csv"))
+
+# Specify output folder for graphs
+graph_dir <- here::here("2_Graphs")
+
+
+# Reorder the age group labels
+panel$age_group_label %<>% as.factor()
+panel$age_group_label <- reorder(panel$age_group_label, -panel$age_group)
+levels(panel$age_group_label)
+
+# Reorder and label gender
+panel %<>% 
+  mutate(gender = as.factor(case_when(
+    gender == 1 ~ "male",
+    gender == 2 ~ "female",
+    gender == 3 ~ "divers")))
+table(panel$gender, useNA = "always")
+
+# Label the employment and occupational status
+panel %<>% 
+  mutate(employment_label = as.factor(case_when(
+    employment == 1 ~ "Employed full-time",
+    employment == 2 ~ "Employed part-time",
+    employment == 3 ~ "Marginal or irregular employment",
+    employment == 4 ~ "Not employed")))
+
+table(panel$employment_label, useNA = "always")
+
+# Zustimmung zu Schutzmaßnahmen
+panel %<>% 
+  mutate(perception_gov_reg_label = as.factor(case_when(
+    perception_gov_reg == 1 ~ "gehen viel zu weit",
+    perception_gov_reg == 2 ~ ".",
+    perception_gov_reg == 3 ~ "gehen zu weit",
+    perception_gov_reg == 4 ~ "..",
+    perception_gov_reg == 5 ~ "...",
+    perception_gov_reg == 6 ~ "sind angemessen",
+    perception_gov_reg == 7 ~ "....",
+    perception_gov_reg == 8 ~ ".....",
+    perception_gov_reg == 9 ~ "reichen eher nicht aus",
+    perception_gov_reg == 10 ~ "......",
+    perception_gov_reg == 11 ~ "reichen bei Weitem nicht aus")))
+
+panel$perception_gov_reg_label <- reorder(panel$perception_gov_reg_label, panel$perception_gov_reg)
+levels(panel$perception_gov_reg_label)
+
+# Subset participants depending on the wave
+wave1 <- panel %>% filter(wave == 1)
+wave2 <- panel %>% filter(wave == 2)
+wave3 <- panel %>% filter(wave == 3)
+
+# Relabel and reorder income groups
+wave1 %<>%
+  mutate(hh_inc_label = as.factor(case_when(
+    hh_inc == 1 ~ "< 1,500 EUR",
+    hh_inc == 2 ~ "1,500 - 3,000 EUR",
+    hh_inc == 3 ~ "3,000 - 4,000 EUR",
+    hh_inc == 4 ~ " > 4,000 EUR")))
+
+wave1$hh_inc_label <- reorder(wave1$hh_inc_label, -wave1$hh_inc)
+levels(wave1$hh_inc_label)
+
+table(wave2$hh_inc)
+
+wave2 %<>%
+  mutate(hh_inc_label_12g = as.factor(case_when(
+    hh_inc_12g == 1 ~ "< 500 EUR",
+    hh_inc_12g == 2 ~ "500 - 999 EUR",
+    hh_inc_12g == 3 ~ "1,000 - 1,499 EUR",
+    hh_inc_12g == 4 ~ "1,500 - 1,999 EUR",
+    hh_inc_12g == 5 ~ "2,000 - 2,499 EUR",
+    hh_inc_12g == 6 ~ "2,500 - 2,999 EUR",
+    hh_inc_12g == 7 ~ "3,000 - 3,499 EUR",
+    hh_inc_12g == 8 ~ "3,500 - 3,999 EUR",
+    hh_inc_12g == 9 ~ "4,000 - 4,499 EUR",
+    hh_inc_12g == 10 ~ "4,500 - 4,999 EUR",
+    hh_inc_12g == 11 ~ "5,000 - 6,000 EUR",
+    hh_inc_12g == 12 ~ " > 6,000 EUR")))
+
+wave2$hh_inc_label_12g <- reorder(wave2$hh_inc_label_12g, -wave2$hh_inc_12g)
+levels(wave2$hh_inc_label_12g)
+
+wave3 %<>%
+  mutate(hh_inc_label_12g = as.factor(case_when(
+    hh_inc_12g == 1 ~ "< 500 EUR",
+    hh_inc_12g == 2 ~ "500 - 999 EUR",
+    hh_inc_12g == 3 ~ "1,000 - 1,499 EUR",
+    hh_inc_12g == 4 ~ "1,500 - 1,999 EUR",
+    hh_inc_12g == 5 ~ "2,000 - 2,499 EUR",
+    hh_inc_12g == 6 ~ "2,500 - 2,999 EUR",
+    hh_inc_12g == 7 ~ "3,000 - 3,499 EUR",
+    hh_inc_12g == 8 ~ "3,500 - 3,999 EUR",
+    hh_inc_12g == 9 ~ "4,000 - 4,499 EUR",
+    hh_inc_12g == 10 ~ "4,500 - 4,999 EUR",
+    hh_inc_12g == 11 ~ "5,000 - 6,000 EUR",
+    hh_inc_12g == 12 ~ " > 6,000 EUR")))
+
+wave3$hh_inc_label_12g <- reorder(wave3$hh_inc_label_12g, -wave3$hh_inc_12g)
+levels(wave3$hh_inc_label_12g)
+
+# Tatsächliches Jahreseinkommen
+wave3 %<>% 
+  mutate(actual_income_change_label = as.factor(case_when(
+    actual_income_change == 1 ~ "Reduktion auf ein Zehntel",
+    actual_income_change == 2 ~ ".",
+    actual_income_change == 3 ~ "Halbierung",
+    actual_income_change == 4 ~ "..",
+    actual_income_change == 5 ~ "Verringerung um 10%",
+    actual_income_change == 6 ~ "...",
+    actual_income_change == 7 ~ "Verringerung um 1%",
+    actual_income_change == 8 ~ "Unverändert",
+    actual_income_change == 9 ~ "Erhöhung um 1%",
+    actual_income_change == 10 ~ "....",
+    actual_income_change == 11 ~ "Erhöhung um 10%",
+    actual_income_change == 12 ~ ".....",
+    actual_income_change == 13 ~ "Verdoppelung",
+    actual_income_change == 14 ~ "......",
+    actual_income_change == 15 ~ "Verzehnfachung")))
+
+wave3$actual_income_change_label <- reorder(wave3$actual_income_change_label, wave3$actual_income_change)
+levels(wave3$actual_income_change_label)
+
+
+# Expected Income Change (W1)
+wave1 %<>% 
+  mutate(exp_inc_change_label = as.factor(case_when(
+    exp_inc_change == 1 ~ "Reduktion auf ein Zehntel",
+    exp_inc_change == 2 ~ ".",
+    exp_inc_change == 3 ~ "Halbierung",
+    exp_inc_change == 4 ~ "..",
+    exp_inc_change == 5 ~ "Verringerung um 10%",
+    exp_inc_change == 6 ~ "...",
+    exp_inc_change == 7 ~ "Verringerung um 1%",
+    exp_inc_change == 8 ~ "Unverändert",
+    exp_inc_change == 9 ~ "Erhöhung um 1%",
+    exp_inc_change == 10 ~ "....",
+    exp_inc_change == 11 ~ "Erhöhung um 10%",
+    exp_inc_change == 12 ~ ".....",
+    exp_inc_change == 13 ~ "Verdoppelung",
+    exp_inc_change == 14 ~ "......",
+    exp_inc_change == 15 ~ "Verzehnfachung")))
+
+wave1$exp_inc_change_label <- reorder(wave1$exp_inc_change_label, wave1$exp_inc_change)
+levels(wave1$exp_inc_change_label)
+
+# Expected Income Change (W3)
+wave3 %<>% 
+  mutate(exp_inc_change_label = as.factor(case_when(
+    exp_inc_change == 1 ~ "Reduktion auf ein Zehntel",
+    exp_inc_change == 2 ~ ".",
+    exp_inc_change == 3 ~ "Halbierung",
+    exp_inc_change == 4 ~ "..",
+    exp_inc_change == 5 ~ "Verringerung um 10%",
+    exp_inc_change == 6 ~ "...",
+    exp_inc_change == 7 ~ "Verringerung um 1%",
+    exp_inc_change == 8 ~ "Unverändert",
+    exp_inc_change == 9 ~ "Erhöhung um 1%",
+    exp_inc_change == 10 ~ "....",
+    exp_inc_change == 11 ~ "Erhöhung um 10%",
+    exp_inc_change == 12 ~ ".....",
+    exp_inc_change == 13 ~ "Verdoppelung",
+    exp_inc_change == 14 ~ "......",
+    exp_inc_change == 15 ~ "Verzehnfachung")))
+
+wave3$exp_inc_change_label <- reorder(wave3$exp_inc_change_label, wave3$exp_inc_change)
+levels(wave3$exp_inc_change_label)
+
+# Impfbereitschaft (W2)
+wave2 %<>% 
+  mutate(will_voluntary_vacc_label = as.factor(case_when(
+    will_voluntary_vacc == 1 ~ "ausgeschlossen",
+    will_voluntary_vacc == 2 ~ ".",
+    will_voluntary_vacc == 3 ~ "eher unwahrscheinlich",
+    will_voluntary_vacc == 4 ~ "..",
+    will_voluntary_vacc == 5 ~ "...",
+    will_voluntary_vacc == 6 ~ "gut möglich",
+    will_voluntary_vacc == 7 ~ "....",
+    will_voluntary_vacc == 8 ~ ".....",
+    will_voluntary_vacc == 9 ~ "eher wahrscheinlich",
+    will_voluntary_vacc == 10 ~ "......",
+    will_voluntary_vacc == 11 ~ "sicher")))
+
+wave2$will_voluntary_vacc_label <- reorder(wave2$will_voluntary_vacc_label, wave2$will_voluntary_vacc)
+levels(wave2$will_voluntary_vacc_label)
+
+# Impfbereitschaft (W3)
+wave3 %<>% 
+  mutate(will_voluntary_vacc_label = as.factor(case_when(
+    will_voluntary_vacc == 1 ~ "ausgeschlossen",
+    will_voluntary_vacc == 2 ~ ".",
+    will_voluntary_vacc == 3 ~ "eher unwahrscheinlich",
+    will_voluntary_vacc == 4 ~ "..",
+    will_voluntary_vacc == 5 ~ "...",
+    will_voluntary_vacc == 6 ~ "gut möglich",
+    will_voluntary_vacc == 7 ~ "....",
+    will_voluntary_vacc == 8 ~ ".....",
+    will_voluntary_vacc == 9 ~ "eher wahrscheinlich",
+    will_voluntary_vacc == 10 ~ "......",
+    will_voluntary_vacc == 11 ~ "sicher")))
+
+wave3$will_voluntary_vacc_label <- reorder(wave3$will_voluntary_vacc_label, wave3$will_voluntary_vacc)
+levels(wave3$will_voluntary_vacc_label)
+
+# Pflichtimpfung (W2)
+wave2 %<>% 
+  mutate(agreement_vac_label = as.factor(case_when(
+    agreement_vac == 0 ~ "stimme überhaupt nicht zu",
+    agreement_vac == 1 ~ ".",
+    agreement_vac == 2 ~ "..",
+    agreement_vac == 3 ~ "...",
+    agreement_vac == 4 ~ "....",
+    agreement_vac == 5 ~ ".....",
+    agreement_vac == 6 ~ "......",
+    agreement_vac == 7 ~ ".......",
+    agreement_vac == 8 ~ "........",
+    agreement_vac == 9 ~ ".........",
+    agreement_vac == 10 ~ "stimme voll und ganz zu")))
+
+wave2$agreement_vac_label <- reorder(wave2$agreement_vac_label, wave2$agreement_vac)
+levels(wave2$agreement_vac_label)
+table(wave2$agreement_vac_label)
+
+# Pflichtimpfung (W3)
+wave3 %<>% 
+  mutate(agreement_vac_label = as.factor(case_when(
+    agreement_vac == 0 ~ "stimme überhaupt nicht zu",
+    agreement_vac == 1 ~ ".",
+    agreement_vac == 2 ~ "..",
+    agreement_vac == 3 ~ "...",
+    agreement_vac == 4 ~ "....",
+    agreement_vac == 5 ~ ".....",
+    agreement_vac == 6 ~ "......",
+    agreement_vac == 7 ~ ".......",
+    agreement_vac == 8 ~ "........",
+    agreement_vac == 9 ~ ".........",
+    agreement_vac == 10 ~ "stimme voll und ganz zu")))
+
+wave3$agreement_vac_label <- reorder(wave3$agreement_vac_label, wave3$agreement_vac)
+levels(wave3$agreement_vac_label)
+
+# Einschränkungen der Kontakte gemessen an Vorschriften
+panel %<>% 
+  mutate(change_con_wrt_gov_reg_label = as.factor(case_when(
+    change_con_wrt_gov_reg == 1 ~ "Teilnahme an Coronaparties",
+    change_con_wrt_gov_reg == 2 ~ ".",
+    change_con_wrt_gov_reg == 3 ~ "erheblich weniger als vorgeschrieben",
+    change_con_wrt_gov_reg == 4 ~ "..",
+    change_con_wrt_gov_reg == 5 ~ "...",
+    change_con_wrt_gov_reg == 6 ~ "nach Vorschrift",
+    change_con_wrt_gov_reg == 7 ~ "....",
+    change_con_wrt_gov_reg == 8 ~ ".....",
+    change_con_wrt_gov_reg == 9 ~ "deutlich mehr als vorgeschrieben",
+    change_con_wrt_gov_reg == 10 ~ "......",
+    change_con_wrt_gov_reg == 11 ~ "vollst. Einstellung von Kontakten")))
+
+panel$change_con_wrt_gov_reg_label <- reorder(panel$change_con_wrt_gov_reg_label, panel$change_con_wrt_gov_reg)
+levels(panel$change_con_wrt_gov_reg_label)
+
+# Einschränkungen der Kontakte gemessen an Vorschriften
+panel %<>% 
+  mutate(wave_label = as.factor(case_when(
+    wave == 1 ~ "Frühjar 2020",
+    wave == 2 ~ "Herbst 2020",
+    wave == 3 ~ "Winter 2020")))
+
+panel$wave_label <- reorder(panel$wave_label, panel$wave)
+levels(panel$wave_label)
+
+# Tragen Mund Nasen Schutz gemessen an Regulierung
+panel %<>% 
+  mutate(wearing_mn_label = as.factor(case_when(
+    wearing_mn == 1 ~ "Nie",
+    wearing_mn == 2 ~ ".",
+    wearing_mn == 3 ~ "erheblich weniger als vorgeschrieben",
+    wearing_mn == 4 ~ "..",
+    wearing_mn == 5 ~ "...",
+    wearing_mn == 6 ~ "nach Vorschrift",
+    wearing_mn == 7 ~ "....",
+    wearing_mn == 8 ~ ".....",
+    wearing_mn == 9 ~ "deutlich mehr als vorgeschrieben",
+    wearing_mn == 10 ~ "......",
+    wearing_mn == 11 ~ "immer")))
+
+panel$wearing_mn_label <- reorder(panel$wearing_mn_label, panel$wearing_mn)
+levels(panel$wearing_mn_label)
+
+# Source text for plots:
+source_txt_w1 <- "Quelle: Erhebungswelle 1 (20.-27. März 2020)"
+source_txt_w2 <- "Quelle: Erhebungswelle 2 (21.-30. August 2020)"
+source_txt_w3 <- "Quelle: Erhebungswelle 3 (09.-.22. Dezember 2020)"
+
+# Define some color bars
+blue_color_palette <- c(colorspace::sequential_hcl(8 - 1, "Blues 3"), "#808080", rev(colorspace::sequential_hcl(15 - 8, "Oranges"))) # Midpoint = 8
+
+# Set my theme settings
+my_theme_settings <- theme_minimal() + 
+  theme(
+    # Set the plot title in the top left corner
+    plot.caption = element_text(hjust = 0, face= "italic"),
+    plot.title.position = "plot",
+    plot.caption.position =  "plot",
+    # Adjust the grid lines
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_line(colour = "lightgray"),
+    legend.position = "right",
+    legend.spacing.x = unit(0.05, 'cm'),
+    legend.title = element_blank())
+```
+
+
+<br>
+<br>
+**Hauptergebnisse**
+
+- Die Einkommen entwickelten sich im Jahr 2020 insgesamt besser als die Bevölkerung im März 2020 erwartet hat, allerdings hat die Einkommensungleichheit unter den mehr als 3000 Befragten zugenommen. 
+
+- Für 2021 erwarten die Deutschen im Durchschnitt steigende Einkommen. Die Mehrheit der Befragten geht davon aus, dass wir noch bis mindestens Anfang 2022 mit nennenswerten Corona-Einschränkungen leben müssen. 
+
+- Eine Mehrheit in allen Alters- und Einkommensklassen wäre bereit sich freiwillig impfen zu lassen. Allerdings spricht sich eine wachsende Mehrheit gegen eine Pflichtimpfung aus. 
+
+- Während sich 52% der Befragten striktere Maßnahmen zur Eindämmung des Virus wünschen, finden nur 21%, dass sie zu weit gehen. Im Laufe des Jahres hat diesbezüglich die Polarisierung zugenommen.
+
+
+
+# Motivation und Studiendesign
+Dieser Bericht stellt einige Ergebnisse zu Einstellungen, Verhalten und Erwartungen im Verlauf der COVID-19 Pandemie vor, die wir im Rahmen einer dreiteiligen repräsentativen Panel-Befragung mit mehr als 3000 Personen in Deutschland gewonnen haben. Ende März 2020 nahmen dazu 3.612 Teilnehmer an unserer Befragung teil, Ende August waren es 3.143, und Mitte Dezember 3.437. Wir haben einen Großteil der Teilnehmer mehrmals befragt, und zudem das Panel im August um 685 und im Dezember um 734 neue Teilnehmer ergänzt, um die Repräsentativität für die deutsche Bevölkerung hinsichtlich Bildung, Alter, Einkommen und Geschlecht zu gewährleisten. Jede Erhebungswelle umfasste etwa 50 Fragen sowie zwei ökonomische Experimente. Die Auswertung der Experimente wird zur Veröffentlichung in Fachzeitschriften vorbereitet. Erste Ergebnisse sind bereits publiziert. Mehr Details finden sich in den [Voranalyse-Plänen](https://doi.org/10.1257/rct.5573-1.3) und den zugehörigen Fachpublikationen. [@bos_2020; @quaas_2020].
+
+# Ausgewählte Ergebnisse:
+
+## 1.	Einkommen entwickelten sich besser als zu Beginn der Pandemie erwartet, aber ungleich {.tabset}
+
+Zu Beginn der Pandemie (März 2020) haben alle befragten Altersgruppen pessimistischere Erwartungen an die Einkommensentwicklung für 2020 gehabt, als diese im Durchschnitt tatsächlich eingetreten sind (Dezember 2020).
+
+Es gab in allen Einkommensgruppen sowohl Einkommensverluste als auch Einkommenszuwächse gegenüber 2019. Dennoch scheint im Pandemiejahr 2020 die Einkommensverteilung ungleicher geworden zu sein: Wenn sich das Einkommen verändert hat, dann ist es tendenziell geschrumpft für Haushalte mit einem geringen Einkommen, dagegen aber eher gestiegen für Haushalte mit einem hohen Einkommen. Bei den Einkommenserwartungen für 2021 ergibt sich ein ähnliches Bild.
+
+### Einkommenserwartung 2020
+<!-- Einkommenserwartung 2020 nach Alter -->
+```{r, fig.height=6.5}
+# Data for the graph
+df_exp_inc_change_w1 <- wave1 %>% 
+  filter(!is.na(age_group_label), !is.na(exp_inc_change_label)) %>% 
+  group_by(age_group_label, exp_inc_change_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_exp_inc_change_w1 <- ggplot(df_exp_inc_change_w1, aes(x = age_group_label, y = share, fill = exp_inc_change_label,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Einkommenserwartung: ", as.factor(exp_inc_change_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = blue_color_palette) +
+  labs(
+      title = "Einkommenserwartung 2020",
+      subtitle = "Was erwarten Sie ungefähr, wie sich Ihr Jahreseinkommen im laufenden Jahr 2020 \nim Vergleich zum Vorjahr 2019 verändert?",
+      caption = source_txt_w1
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_exp_inc_change_w1,
+       filename = "Fig1_Einkommenserwartung2020_nach_Alter.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_exp_inc_change_w1, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Einkommenserwartung 2020',
+                                    '<br>', '<sup>',
+                                    'Was erwarten Sie ungefähr, wie sich Ihr Jahreseinkommen im laufenden Jahr 2020 \nim Vergleich zum Vorjahr 2019 verändert?', '</sup>')), margin = 100)
+```
+
+### Tatsächliches Einkommen 2020
+<!-- nach Einkommensgruppe -->
+```{r, fig.height=6.5}
+# Data for the graph
+df_act_inc_change2 <- wave3 %>% 
+  filter(!is.na(hh_inc_label_12g), !is.na(actual_income_change_label)) %>% 
+  group_by(hh_inc_label_12g, actual_income_change_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_act_inc_change_2 <- ggplot(df_act_inc_change2, aes(x = hh_inc_label_12g, y = share, fill = actual_income_change_label,
+                             text = paste0("Einkommensgruppe: ", hh_inc_label_12g,
+                                   "<br>Einkommensänderung: ", as.factor(actual_income_change_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = blue_color_palette) +
+  labs(
+      title = "Jahreseinkommen 2020",
+      subtitle = "Wie hat sich ihr Jahreseinkommen im aktuellen Jahr 2020 \nim Vergleich zum Vorjahr 2019 verändert?",
+      caption = source_txt_w3
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_act_inc_change_2,
+       filename = "Fig2_TatsEinkommen2020_nach_Einkommen.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_act_inc_change_2, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Jahreseinkommen 2020',
+                                    '<br>', '<sup>',
+                                    'Wie hat sich ihr Jahreseinkommen im aktuellen Jahr 2020 \nim Vergleich zum Vorjahr 2019 verändert?', '</sup>')), margin = 100)
+```
+
+### Einkommenserwartung 2021
+<!-- nach Einkommensgruppe -->
+```{r, fig.height=6.5}
+# Data for the graph
+df_exp_inc_change2021 <- wave3 %>% 
+  filter(!is.na(hh_inc_label_12g), !is.na(exp_inc_change_label)) %>% 
+  group_by(hh_inc_label_12g, exp_inc_change_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_exp_inc_change2021 <- ggplot(df_exp_inc_change2021, aes(x = hh_inc_label_12g, y = share, fill = exp_inc_change_label,
+                             text = paste0("Einkommensgruppe: ", hh_inc_label_12g,
+                                   "<br>Einkommenserwartung: ", as.factor(exp_inc_change_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = blue_color_palette) +
+  labs(
+      title = "Einkommenserwartung 2021",
+      subtitle = "Was erwarten Sie ungefähr, wie sich Ihr Jahreseinkommen im kommenden Jahr 2021 \nim Vergleich zum Vorjahr 2019 verändert?",
+      caption = source_txt_w3
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_exp_inc_change2021,
+       filename = "Fig3_Einkommenserwartung2021_nach_Einkommen.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_exp_inc_change2021, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Einkommenserwartung 2021',
+                                    '<br>', '<sup>',
+                                    'Was erwarten Sie ungefähr, wie sich Ihr Jahreseinkommen im kommenden Jahr 2021 \nim Vergleich zum Vorjahr 2019 verändert?', '</sup>')), margin = 100)
+```
+
+## 2.	Baldige Rückkehr zur „Normalität“
+Im Dezember 2020 erwarten mehr als die Hälfte der Deutschen, dass im zweiten Halbjahr 2021 oder im ersten Halbjahr 2022 wieder ein Leben ohne nennenswerte Einschränkungen durch die Corona-Pandemie möglich ist. Insgesamt erwarten 45% der Befragten, dass ein Alltag ohne nennenswerte Einschränkung durch Corona bis Ende 2021 oder früher möglich ist. Eine Rückkehr zur „Normalität“ bis Ende 2022 erwartet eine große Mehrheit von 85% der Befragten.
+
+```{r}
+# Wave 3
+no_restrictions_w3 <- wave3 %>% 
+  filter(!is.na(no_restrictions_date)) %>% 
+  mutate(no_restrictions_date_label = as.factor(case_when(
+    no_restrictions_date == 1 ~ "2/2020",
+    no_restrictions_date == 2 ~ "1/2021",
+    no_restrictions_date == 3 ~ "2/2021",
+    no_restrictions_date == 4 ~ "1/2022",
+    no_restrictions_date == 5 ~ "2/2022",
+    no_restrictions_date == 6 ~ "1/2023",
+    no_restrictions_date == 7 ~ "2/2023",
+    no_restrictions_date == 8 ~ "1/2024",
+    no_restrictions_date == 9 ~ "2/2024",
+    no_restrictions_date == 10 ~ "1/2025",
+    no_restrictions_date == 11 ~ "2/2025",
+    no_restrictions_date == 12 ~ "2026",
+    no_restrictions_date == 13 ~ "2027",
+    no_restrictions_date == 14 ~ "2028",
+    no_restrictions_date == 15 ~ "2029",
+    no_restrictions_date == 16 ~ "2030",
+    no_restrictions_date == 17 ~ ">2030",
+  )))
+
+no_restrictions_w3$no_restrictions_date_label <- reorder(no_restrictions_w3$no_restrictions_date_label, no_restrictions_w3$no_restrictions_date)
+# levels(no_restrictions_w2$no_restrictions_date_label)
+
+# Data for the graph
+df_exp_normal <- no_restrictions_w3 %>% 
+  filter(!is.na(no_restrictions_date_label)) %>% 
+  group_by(no_restrictions_date_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+
+# Create graph
+plot_exp_normal <- ggplot(df_exp_normal, aes(x = as.factor(no_restrictions_date_label),
+                                             y = share,
+                                             text = paste0("Anteil: ", share * 100, "%"))) +
+  geom_bar(stat = "identity", fill = "#2166ac") +
+  scale_y_continuous(labels = function(x) paste0(x*100, "%")) +
+  labs(
+      title = "Rückkehr der Normalität",
+      subtitle = "Was erwarten Sie, ab wann werden wir wieder ohne nennenswerte Corona-Einschränkungen \nleben können?",
+      caption = source_txt_w3
+    ) +
+    ylab("") + 
+    xlab("") +
+    theme_minimal() + 
+    theme(
+      # Set the plot title in the top left corner
+      plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.title.position = "plot",
+      # Adjust the grid lines
+      panel.grid = element_blank(),
+      panel.grid.major.y = element_line(colour = "lightgray"),
+      # Rotate x-axis text
+      axis.text.x= element_text(angle = 45))
+
+ggsave(plot_exp_normal,
+       filename = "Fig4_Erwartung_Normalität.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_exp_normal, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Rückkehr der Normalität',
+                                    '<br>', '<sup>',
+                                    'Was erwarten Sie, ab wann werden wir wieder ohne nennenswerte Corona-Einschränkungen leben können?', '</sup>')), margin = 100)
+```
+
+
+## 3.	Impfbereitschaft bei Älteren anhaltend hoch, aber Rückgang bei Jüngeren {.tabset}
+Um ein detailliertes Bild zu erlangen, haben wir die Impfbereitschaft auf einer erweiterten Skala erhoben. Dies zeigt: In allen Altersgruppen erklären mehr als 50%, dass es mindestens „gut möglich“ ist, dass sie sich freiwillig impfen lassen. Die Impfbereitschaft hat im Dezember 2020 gegenüber August 2020 abgenommen: Während im Dezember im Durchschnitt 68% der Befragten angeben, sich freiwillig impfen lassen zu wollen („gut möglich“ oder höhere Zustimmung), waren dies im August noch 72%. Der Rückgang der Impfbereitschaft ist besonders ausgeprägt bei Befragten, die jünger sind als 40 Jahre. Bei den über 60-Jährigen hat die Impfbereitschaft kaum abgenommen und etwa 80%, geben an, es sei zumindest „gut möglich“, dass sie sich freiwillig impfen werden.
+
+### Herbst 2020
+<!-- Impfbereitschaft Welle 2 nach Alter -->
+```{r}
+# Data for the graph
+df_will_vac_w2 <- wave2 %>% 
+  filter(!is.na(age_group_label), !is.na(will_voluntary_vacc_label)) %>% 
+  group_by(age_group_label, will_voluntary_vacc_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_will_vac_w2 <- ggplot(df_will_vac_w2, aes(x = age_group_label, y = share, fill = will_voluntary_vacc_label,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Impfbereitschaft: ", as.factor(will_voluntary_vacc_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Impfbereitschaft Herbst 2020",
+      subtitle = "Wie wahrscheinlich ist es, dass Sie sich freiwillig impfen lassen würden?",
+      caption = source_txt_w2
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_will_vac_w2,
+       filename = "Fig5_Impfbereitschaft_W2_nach_Alter.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_will_vac_w2, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Impfbereitschaft Herbst 2020',
+                                    '<br>', '<sup>',
+                                    'Wie wahrscheinlich ist es, dass Sie sich freiwillig impfen lassen würden?', '</sup>')), margin = 100)
+```
+
+### Winter 2020
+<!-- Impfbereitschaft Welle 3 nach Alter -->
+```{r}
+# Data for the graph
+df_will_vac_w3 <- wave3 %>% 
+  filter(!is.na(age_group_label), !is.na(will_voluntary_vacc_label)) %>% 
+  group_by(age_group_label, will_voluntary_vacc_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_will_vac_w3 <- ggplot(df_will_vac_w3, aes(x = age_group_label, y = share, fill = will_voluntary_vacc_label,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Impfbereitschaft: ", as.factor(will_voluntary_vacc_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Impfbereitschaft Winter 2020",
+      subtitle = "Wie wahrscheinlich ist es, dass Sie sich freiwillig impfen lassen würden?",
+      caption = source_txt_w3
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_will_vac_w3,
+       filename = "Fig6_Impfbereitschaft_W3_nach_Alter.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_will_vac_w3, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Impfbereitschaft Winter 2020',
+                                    '<br>', '<sup>',
+                                    'Wie wahrscheinlich ist es, dass Sie sich freiwillig impfen lassen würden?', '</sup>')), margin = 100)
+```
+
+<!-- To end the tabbed section: -->
+##
+
+Gliedert man die Impfbereitschaft nach Einkommen, zeigt sich eine höhere Bereitschaft bei höheren Einkommen.
+
+<!-- Impfbereitschaft Welle 3 nach Einkommen -->
+```{r}
+# Data for the graph
+df_will_vac_w3_inc <- wave3 %>% 
+  filter(!is.na(hh_inc_label_12g), !is.na(will_voluntary_vacc_label)) %>% 
+  group_by(hh_inc_label_12g, will_voluntary_vacc_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_will_vac_w3_inc <- ggplot(df_will_vac_w3_inc, aes(x = hh_inc_label_12g, y = share, fill = will_voluntary_vacc_label,
+                             text = paste0("Einkommensgruppe: ", hh_inc_label_12g,
+                                   "<br>Impfbereitschaft: ", as.factor(will_voluntary_vacc_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Impfbereitschaft Winter 2020",
+      subtitle = "Wie wahrscheinlich ist es, dass Sie sich freiwillig impfen lassen würden?",
+      caption = source_txt_w3
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_will_vac_w3_inc,
+       filename = "Fig7_Impfbereitschaft_W3_nach_Einkommen.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_will_vac_w3_inc, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Impfbereitschaft Winter 2020',
+                                    '<br>', '<sup>',
+                                    'Wie wahrscheinlich ist es, dass Sie sich freiwillig impfen lassen würden?', '</sup>')), margin = 100)
+```
+
+
+## 4.	Ablehnung einer Impfpflicht wächst {.tabset}
+Seit August 2020 hat in allen Altersgruppen die Zustimmung zu einer verpflichtenden Impfung abgenommen. Im Dezember 2020 lehnt eine Mehrheit in allen Altersgruppen eine Impfpflicht ab. Der Anteil derer, die eine Impfpflicht befürworten, ist größer in höheren Altersgruppen. Im Dezember 2020 haben fast ein Drittel (32%) eine verpflichtende Impfung gegen das Coronavirus strikt abgelehnt. Im August war nur weniger als ein Viertel (23%) der Befragten grundsätzlich gegen eine Impfpflicht.
+
+### Herbst 2020
+<!-- Impfpflicht Welle 2 nach Alter -->
+```{r}
+# Data for the graph
+df_agreement_vac_w2 <- wave2 %>% 
+  filter(!is.na(age_group_label), !is.na(agreement_vac_label)) %>% 
+  group_by(age_group_label, agreement_vac_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_agreement_vac_w2 <- ggplot(df_agreement_vac_w2, aes(x = age_group_label, y = share, fill = agreement_vac_label,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Zustimmung: ", as.factor(agreement_vac_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Pflichtimpfung Herbst 2020",
+      subtitle = "Es sollte verpflichtend sein, sich gegen das Coronavirus zu impfen.",
+      caption = source_txt_w2
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_agreement_vac_w2,
+       filename = "Fig8_Impfpflicht_W2_nach_Alter.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_agreement_vac_w2, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Pflichtimpfung Herbst 2020',
+                                    '<br>', '<sup>',
+                                    'Es sollte verpflichtend sein, sich gegen das Coronavirus zu impfen.', '</sup>')), margin = 100)
+```
+
+### Winter 2020
+<!-- Impfpflicht Welle 3 nach Alter -->
+```{r}
+# Data for the graph
+df_agreement_vac_w3 <- wave3 %>% 
+  filter(!is.na(age_group_label), !is.na(agreement_vac_label)) %>% 
+  group_by(age_group_label, agreement_vac_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_agreement_vac_w3 <- ggplot(df_agreement_vac_w3, aes(x = age_group_label, y = share, fill = agreement_vac_label,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Zustimmung: ", as.factor(agreement_vac_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Pflichtimpfung Winter 2020",
+      subtitle = "Es sollte verpflichtend sein, sich gegen das Coronavirus zu impfen.",
+      caption = source_txt_w3
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_agreement_vac_w3,
+       filename = "Fig9_Impfpflicht_W3_nach_Alter.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_agreement_vac_w3, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Pflichtimpfung Winter 2020',
+                                    '<br>', '<sup>',
+                                    'Es sollte verpflichtend sein, sich gegen das Coronavirus zu impfen.', '</sup>')), margin = 100)
+```
+
+
+## 5.	Beiträge zum Infektionsschutz nehmen wieder zu {.tabset}
+Anhaltend befolgt ein Großteil der Bevölkerung die Vorschriften zum Tragen eines Mund-Nasen-Schutzes sowie zur Reduktion von Kontakten. Im Dezember 2020 gaben 85% der Befragten an, ihre Kontakte mindestens so viel zu reduzieren wie vorgeschrieben. Fast die Hälfte (48%) ging bei der Reduzierung sogar über die Vorschriften hinaus. Zudem geben 89% an, einen Mund-Nasen-Schutz mindestens da zu tragen, wo er vorgeschrieben ist. Die freiwillige Beschränkung von Kontakten über die Vorschriften der Regierung hinaus ist im Dezember wieder höher als im August, allerdings nicht so hoch wie während der ersten Welle im März 2020. Ebenso ist der Anteil derer, die einen Mund-Nase-Schutz häufiger trägen als vorgeschrieben mit 55% im Dezember gegenüber 41% im August gestiegen. Es zeigt sich beim Tragen des Mund-Nasen-Schutzes vor dem Hintergrund strengerer Regeln auch eine Spaltungstendenz: Neben dem Anteil derer, die häufiger einen Mund-Nasen-Schutz tragen als vorgeschrieben, ist auch der Anteil derer gestiegen, die zugeben, sich nicht an die Vorschriften zu halten. Konstant geblieben ist die Motivation, Schutzmaßnahmen zu ergreifen. Das tun die Befragten nur zur Hälfte aus Selbstschutz. Genauso wichtig ist es den Befragten, andere zu schützen. Vor allem die Jüngeren unter den Befragten ergreifen Schutzmaßnahmen auch aus dem Grund, Freunde und Familie sowie auch andere Menschen zu schützen.
+
+### Mund-Nasen-Schutz
+<!-- Tragen Mund Nasen Schutz gemessen an Regulierung - nach Welle -->
+```{r}
+# Data for the graph
+df_wearing_mn <- panel %>% 
+  filter(wave >= 2) %>% # Do not consider the first wave
+  filter(!is.na(wave_label), !is.na(wearing_mn_label)) %>% 
+  group_by(wave_label, wearing_mn_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_wearing_mn <- ggplot(df_wearing_mn, aes(x = wave_label, y = share, fill = wearing_mn_label,
+                             text = paste0("Ergebungswelle: ", wave_label,
+                                   "<br>Tragen von Mund-Nasen-Schutz: ", as.factor(wearing_mn_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Tragen von Mund-Nasen-Schutz",
+      subtitle = "Gemessen an den Vorschriften der Regierung trage ich einen Mund-Nasen-Schutz...",
+      caption = ""
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_wearing_mn,
+       filename = "Fig10_Tragen_MN_Regulierung_nach_Welle.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_wearing_mn, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Tragen von Mund-Nasen-Schutz',
+                                    '<br>', '<sup>',
+                                    'Gemessen an den Vorschriften der Regierung trage ich einen Mund-Nasen-Schutz...', '</sup>')), margin = 100)
+```
+
+### Kontaktreduzierung
+<!-- Einschränkungen der Kontakte gemessen an Vorschriften - nach Welle -->
+```{r}
+# Data for the graph
+df_change_con_reg <- panel %>% 
+  filter(wave >= 2) %>% # Do not consider the first wave
+  filter(!is.na(wave_label), !is.na(change_con_wrt_gov_reg_label)) %>% 
+  group_by(wave_label, change_con_wrt_gov_reg_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_change_con_reg <- ggplot(df_change_con_reg, aes(x = wave_label, y = share, fill = change_con_wrt_gov_reg_label,
+                             text = paste0("Ergebungswelle: ", wave_label,
+                                   "<br>Kontakteinschränkungen: ", as.factor(change_con_wrt_gov_reg_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Kontaktreduzierungen",
+      subtitle = "Gemessen an den Vorschriften der Regierung werde ich meine physischen, \nsozialen Kontakte wie folgt einschränken",
+      caption = ""
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_change_con_reg,
+       filename = "Fig11_Veränd_Kontakte_Regulierung_nach_Welle.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_change_con_reg, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Kontaktreduzierungen',
+                                    '<br>', '<sup>',
+                                    'Gemessen an den Vorschriften der Regierung werde ich meine physischen, sozialen Kontakte \nwie folgt einschränken', '</sup>')), margin = 100)
+```
+
+### Zielgruppe
+<!-- Zielgruppe der Schutzmaßnahme - nach Alter -->
+```{r}
+# Data for the graph
+zielgruppen_w3 <- wave3 %>%
+  select(age_group_label, protect_me, protect_ff, protect_others) %>%
+  filter(!is.na(age_group_label)) %>%
+  group_by(age_group_label) %>%
+  summarize(Mich = mean(protect_me, na.rm = TRUE),
+            Familie_Freunde = mean(protect_ff, na.rm = TRUE),
+            Andere = mean(protect_others, na.rm = TRUE)) %>%
+  pivot_longer(cols = -age_group_label,
+               names_to = "zielgruppe",
+               values_to = "Anteil") %>%
+  mutate(zielgruppe = as.factor(zielgruppe))
+
+# Create graph
+plot_zielgruppe <- ggplot(zielgruppen_w3, aes(x = age_group_label, y = Anteil, fill = zielgruppe,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Zielgruppe: ", as.factor(zielgruppe),
+                                   "<br>Anteil: ", round(Anteil, 0), "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = c("#ca0020", "#f7f7f7", "#0571b0")) + # see brewer.pal(5, "RdBu"))
+  labs(
+      title = "Zielgruppe der Schutzmaßnahmen",
+      subtitle = "Soweit Sie physische, soziale Kontakte reduzieren oder Schutzmaßnahmen wie \nintensives Händewaschen ergreifen, zu welchen Anteilen tun Sie dies?",
+      caption = source_txt_w3
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_zielgruppe,
+       filename = "Fig12_Zielgruppe_W3.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_zielgruppe, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Zielgruppe der Schutzmaßnahmen',
+                                    '<br>', '<sup>',
+                                    'Soweit Sie physische, soziale Kontakte reduzieren oder Schutzmaßnahmen wie \nintensives Händewaschen ergreifen, zu welchen Anteilen tun Sie dies?', '</sup>')), margin = 100)
+```
+
+
+
+## 6.	Zustimmung zu politischen Maßnahmen {.tabset}
+
+Eine breite Mehrheit gibt an, dass die jeweils gegenwärtigen Maßnahmen der Regierung zur Eindämmung der Pandemie zumindest angemessen sind. Im März 2020 war die Zustimmung recht einheitlich über die Altersgruppen verteilt: aus Sicht der Befragten waren die Maßnahmen nicht ausreichend. Im Dezember variierte die Zustimmung substanziell mit den Altersgruppen. Während 33% der unter 30-jährigen die Maßnahmen zu weit gehen, sind es bei den über 60-jährigen nur 12%. Zudem hat die Polarisierung zugenommen: Während im März 2% (13%) der Befragten die Maßnahmen „viel zu weit gingen“ („bei Weitem nicht ausreichten“), so waren dies im Dezember 2020 8% (17%). Wohingegen im März noch 31% angaben, dass die Maßnahmen gerade „angemessen“ sind, waren dies im Dezember 2020 nur noch 21%.
+
+### Frühjar 2020
+<!-- Zustimmung der Maßnahmen (Welle 1) - nach Alter -->
+```{r}
+# Data for the graph
+df_perc_gov_reg_w1 <- wave1 %>% 
+  filter(!is.na(age_group_label), !is.na(perception_gov_reg_label)) %>% 
+  group_by(age_group_label, perception_gov_reg_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_perc_gov_reg_w1 <- ggplot(df_perc_gov_reg_w1, aes(x = age_group_label, y = share, fill = perception_gov_reg_label,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Zustimmung: ", as.factor(perception_gov_reg_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Zustimmung der Maßnahmen -- Frühjar 2020",
+      subtitle = "Die gegenwärtigen Maßnahmen der Regierung zur Eindämmung der Corona-Pandemie…",
+      caption = source_txt_w1
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_perc_gov_reg_w1,
+       filename = "Fig13_Zustimmung_Maßnahmen_W1_Alter.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_perc_gov_reg_w1, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Zustimmung der Maßnahmen -- Frühjar 2020',
+                                    '<br>', '<sup>',
+                                    'Die gegenwärtigen Maßnahmen der Regierung zur Eindämmung der Corona-Pandemie…', '</sup>')), margin = 100)
+```
+
+### Winter 2020
+<!-- Zustimmung der Maßnahmen (Welle 3) - nach Alter -->
+```{r}
+# Data for the graph
+df_perc_gov_reg_w3 <- wave3 %>% 
+  filter(!is.na(age_group_label), !is.na(perception_gov_reg_label)) %>% 
+  group_by(age_group_label, perception_gov_reg_label) %>% 
+  summarise(num = n()) %>% 
+  mutate(share = round(num / sum(num), 2))
+
+# Create graph
+plot_perc_gov_reg_w3 <- ggplot(df_perc_gov_reg_w3, aes(x = age_group_label, y = share, fill = perception_gov_reg_label,
+                             text = paste0("Altersgruppe: ", age_group_label,
+                                   "<br>Zustimmung: ", as.factor(perception_gov_reg_label),
+                                   "<br>Anteil: ", share * 100, "%")
+                               )) +
+  geom_bar(stat = "identity", position = position_fill(reverse = TRUE)) +
+  scale_fill_manual(values = brewer.pal(11, "RdBu")) +
+  labs(
+      title = "Zustimmung der Maßnahmen -- Winter 2020",
+      subtitle = "Die gegenwärtigen Maßnahmen der Regierung zur Eindämmung der Corona-Pandemie…",
+      caption = source_txt_w3
+  ) +
+  coord_flip() +
+  scale_y_continuous(position = "right",
+                     breaks = seq(0,1,0.25),
+                     labels = function(x) paste0(x*100, "%")) +
+
+  ylab("") +
+  xlab("") +
+  my_theme_settings
+
+ggsave(plot_perc_gov_reg_w3,
+       filename = "Fig14_Zustimmung_Maßnahmen_W3_Alter.png",
+       path = graph_dir,
+       width = 6, height = 5)
+
+# Show interactive graph
+ggplotly(plot_perc_gov_reg_w3, tooltip = "text") %>%
+  config(displayModeBar = FALSE) %>% 
+  layout(title = list(text = paste0('Zustimmung der Maßnahmen -- Winter 2020',
+                                    '<br>', '<sup>',
+                                    'Die gegenwärtigen Maßnahmen der Regierung zur Eindämmung der Corona-Pandemie…', '</sup>')), margin = 100)
+```
+
+
+
+## 7.	Sozio-demografische Merkmale von Infizierten
+
+Im Dezember gaben 63 Befragte an, sie seien positiv auf das SARS-CoV-2 Virus getestet worden. Trotz der geringen Anzahl zeichnet sich tendenziell ab, dass Infizierte häufiger einer Vollzeitbeschäftigung nachgehen und häufiger in größeren Haushalten mit Kindern, aber seltener mit Personen über 60 Jahren zusammenleben.
+
+<img src="2_Graphs/Fig15_Desc_Stat_Infected.png" alt="Desktriptive Statistiken" style="zoom:100%;" />
+
+
+
+**Zugehörige Fachpublikationen**
+<div id="refs"></div>
+
+
+**Kontakt**
+
+Björn Bos <br>
+Institut für Volkswirtschaftslehre, Universität Hamburg <br>
+Mail: bjoern.bos(at)uni-hamburg.de 
+
+
+Prof. Dr. Moritz Drupp <br>
+Institut für Volkswirtschaftslehre, Universität Hamburg <br>
+Mail: moritz.drupp(at)uni-hamburg.de 
